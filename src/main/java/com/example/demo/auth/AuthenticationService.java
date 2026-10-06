@@ -2,6 +2,7 @@ package com.example.demo.auth;
 
 import java.io.IOException;
 
+import com.example.demo.dtos.UserResponseDTO;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -35,7 +36,9 @@ public class AuthenticationService {
     
     
     //Save JWT to the Tokens table..
-    private void saveToken(User user, String tokenString) {
+	//TODO i need these.. public is okay ?
+	//TODO
+    public void saveToken(User user, String tokenString) {
     	var token= Token.builder()
     			.user(user)
     			.token(tokenString)
@@ -62,7 +65,7 @@ public class AuthenticationService {
     
     //Function1 -> Sign up 
     //1-Register = new user + token 
-    public AuthenticationResponse register(RegisterRequest request) {// does not return authenticationResponse anymore.. 
+    public AuthenticationResponse register(RegisterRequest request) {// does not return authenticationResponse anymore..
     	//new object -> builder better anyways
     	//before register -> exists already ??
     	
@@ -188,6 +191,20 @@ public class AuthenticationService {
         		
         }   
     }
+
+	//new helper function, just to reissue tokens
+	public AuthenticationResponse reissueTokens(User user){
+		String accessToken = jwtService.generateToken(user);
+		String refreshToken = jwtService.generateRefreshToken(user);
+
+		revokeAllTokens(user);
+		saveToken(user,accessToken);
+
+		return AuthenticationResponse.builder()
+				.accessToken(accessToken)
+				.refreshToken(refreshToken)
+				.build();
+	}
     
       
     

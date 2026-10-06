@@ -4,13 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.example.demo.entities.*;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.dtos.CartItemResponseDTO;
 import com.example.demo.dtos.CartResponseDTO;
-import com.example.demo.entities.Cart;
-import com.example.demo.entities.CartItem;
-import com.example.demo.entities.Customization;
 
 import lombok.RequiredArgsConstructor;
 
@@ -40,9 +38,28 @@ public class CartMapper {
 				.sum(); 
 		
 		dto.setTotalCartPrice(total);
-		dto.setAppliedCouponCode(null);
-	    dto.setDiscountAmount(0.0);
-	    dto.setFinalPrice(total);
+
+		//NOW the coupon -> get it from the DB ?
+		double discount =0.0;
+		String code = null;
+
+		if(cart.getAppliedCoupon()!=null){
+			Coupon coupon = cart.getAppliedCoupon();
+			code=coupon.getCode();
+
+			//PERCENT
+			if(coupon.getType().equalsIgnoreCase("PERCENT")){
+				discount=total *(coupon.getValeur()/100.0);
+			}else if(coupon.getType().equalsIgnoreCase("FIXED")){
+				discount=coupon.getValeur();
+			}
+			discount=Math.min(discount,total);//MIN discount ever = the price so it becomes 0 looool i actually forgot omg
+
+		}
+
+		dto.setAppliedCouponCode(code);
+	    dto.setDiscountAmount(discount);
+	    dto.setFinalPrice(total-discount);
 		
 		return dto;
 				
@@ -56,27 +73,40 @@ public class CartMapper {
 		dto.setId(item.getId());
         dto.setProductName(item.getProduct().getNom());
         dto.setQuantity(item.getQuantite());
+
+		dto.setBranchId(item.getProduct().getSeller().getId());
         
-       //price delta = diff right ? 
-        double price = item.getProduct().getPrix();
+       //price delta = diff right ?
+		//TODO DISCOUNTED OMG..
+        double price = item.getProduct().getPrixPromo() !=null
+				? item.getProduct().getPrixPromo()
+				: item.getProduct().getPrix();
         
         //if variant -> subtraction  i guess ..
-        if (item.getVariant() != null) {
-            price += item.getVariant().getPrixDelta();
-        }
-        
+        //updated all the sum
+		double variantsPriceDelta = item.getVariants().stream()
+				.mapToDouble(variant -> variant.getPrixDelta() != null ? variant.getPrixDelta() : 0.0)
+				.sum();
+		price += variantsPriceDelta;
+
         
         
         //what if no iamges ? -> fall back!!
+		//removed
+		/*
         if (item.getProduct().getImages() != null && !item.getProduct().getImages().isEmpty()) {
             dto.setImageUrl(item.getProduct().getImages().get(0));
         }else {
         	dto.setImageUrl("/images/placeholder-product.png");
         }
+
+		 */
+
+		dto.setImageUrl(item.getProduct().getImages().isEmpty() ? null : item.getProduct().getImages().get(0));
         
-        if (item.getVariant() != null) {
-            dto.setVariantName(item.getVariant().getValeur()); // e.g., "Red"
-        }
+        dto.setVariantNames(item.getVariants().stream()
+						.map(ProductVariant::getValeur)
+						.toList());
         
         //customizations ADD PRICE! 
         if(item.getCustomizations() != null && !item.getCustomizations().isEmpty()) {
@@ -97,9 +127,7 @@ public class CartMapper {
         	);
         
         return dto;
-        
-        
-		
+
 	}
 	
 

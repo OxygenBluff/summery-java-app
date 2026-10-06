@@ -17,7 +17,11 @@ import lombok.NoArgsConstructor;
 public class OrderResponseDTO {
 	private Long orderId;
     private LocalDateTime orderDate;
-    private String status; // ENUM StatutCommande
+
+    //order number was missing.. ORD thingy
+    private String numeroCommande;
+
+    private String status; // ENUM StatutCommande TODO why string bruh
     private Double totalAmount;//Sum  : all subtotals ...
     
     private List<OrderItemResponseDTO> items;
@@ -27,5 +31,8 @@ public class OrderResponseDTO {
     private LocalDateTime pickupTime;
     private Long branchId;
     private String branchName;
+
+    //dang it forgottt.
+    private String deliveryAddress;
 
 }

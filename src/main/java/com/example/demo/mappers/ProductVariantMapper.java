@@ -22,6 +22,7 @@ public class ProductVariantMapper {
         entity.setValeur(dto.getValeur());
         entity.setPrixDelta(dto.getPrixDelta());
         entity.setStockSupplementaire(dto.getStockSupplementaire());
+        entity.setImageUrl(dto.getImageUrl());
         return entity;
 	}
 	
@@ -29,10 +30,13 @@ public class ProductVariantMapper {
 	public VariantResponseDTO toResponseDTO(ProductVariant entity) {
 	if (entity == null) return null;
 	return VariantResponseDTO.builder()
+			.id(entity.getId())
             .attribut(entity.getAttribut())
             .valeur(entity.getValeur())
             .prixDelta(entity.getPrixDelta())
             .stockSupplementaire(entity.getStockSupplementaire())
+			.mandatory(entity.isMandatory())
+            .imageUrl(entity.getImageUrl())
             .build();
 	}
 }

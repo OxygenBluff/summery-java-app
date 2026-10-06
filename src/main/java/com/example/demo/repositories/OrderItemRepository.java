@@ -1,5 +1,6 @@
 package com.example.demo.repositories;
 
+import com.example.demo.entities.StatutCommande;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.example.demo.entities.OrderItem;
@@ -12,7 +13,7 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 	boolean existsByOrder_Customer_IdAndProduct_IdAndOrder_Statut(
 			Long userId, 
 	        Long productId, 
-	        String statut
+	        StatutCommande statut
 			);
 	
 	

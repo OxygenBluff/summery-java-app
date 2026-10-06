@@ -3,6 +3,7 @@ package com.example.demo.services;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.example.demo.entities.StatutCommande;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,8 +40,8 @@ public class ReviewService {
     	boolean is_purchased=orderItemRepository.existsByOrder_Customer_IdAndProduct_IdAndOrder_Statut(
     			user.getId(),
     			dto.getProductId(),
-    			"PAYE"
-    			);
+                StatutCommande.PAID
+        );
     	
     	if (!is_purchased) {
     		//TODO custom exception
@@ -106,7 +107,6 @@ public class ReviewService {
         	
         }
 
-        
         //dtos stream -> list 
         return reviews.stream()
                 .map(reviewMapper::toResponseDTO)

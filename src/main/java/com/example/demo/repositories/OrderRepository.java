@@ -2,6 +2,7 @@ package com.example.demo.repositories;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -16,10 +17,14 @@ import com.example.demo.entities.User;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-	//get all user orders 
-	List<Order> findByCustomerOrderByDateCommandeDesc(User customer);
+	//get all user orders
+	//UPDATED to page
+	Page<Order> findByCustomer(User customer,Pageable pageable);
 	//TODO wth ..
-	
+
+	//no more 	Page<Order> findByCustomerOrderByDateCommandeDesc(User customer,Pageable pageable);
+
+
 	//admin -> by date all
 	List<Order> findAllByOrderByDateCommandeDesc(Pageable pageable);
 	

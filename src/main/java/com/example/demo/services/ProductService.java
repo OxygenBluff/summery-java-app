@@ -76,12 +76,13 @@ public class ProductService {
     	
     	//LINK THE VARIANTS !
     	if (dto.getVariants()!=null && !dto.getVariants().isEmpty()) {
-    		List<ProductVariant> variants = dto.getVariants().stream() // our trusty stream for mapping!
+    		List<ProductVariant> variants = dto.getVariants().stream() // our trusty stream for mapping!!!
     				.map(vDTO -> ProductVariant.builder()
     						.attribut(vDTO.getAttribut())
                             .valeur(vDTO.getValeur())
                             .stockSupplementaire(vDTO.getStockSupplementaire())
                             .prixDelta(vDTO.getPrixDelta())
+							.mandatory(vDTO.isMandatory())
                             .product(product) // LINKS IT
                             
                             //->Product entity -> mappedBy =product !!!
@@ -92,6 +93,7 @@ public class ProductService {
                             //->.product(product) tells EACH VARIANT you belong to this product !
                             .build())	
     				.collect(Collectors.toList());
+
     		product.setVariants(variants);
     	}
     	
@@ -108,6 +110,9 @@ public class ProductService {
     		
     		product.setCustomizations(customizations);
     	}
+
+		//EVERY PRODUCT NEEDS A LOWEST PRICE no matter what
+		recalculateLowestPrice(product);
     	
     	Product savedProduct= productRepo.save(product);
     	
@@ -231,7 +236,10 @@ public class ProductService {
     			existingProduct.getCustomizations().add(customization);
     		});
     	}
-    	
+
+		//EVERY PRODUCT NEEDS A LOWEST PRICE no matter what
+		recalculateLowestPrice(existingProduct);
+
     	Product updated = productRepo.save(existingProduct);
     	return productMapper.toResponseDTO(updated);
     	
@@ -300,8 +308,7 @@ public class ProductService {
     		String q,
     		String category, 
     	    Double minPrice, 
-    	    Double maxPrice, 
-    	    //NEW ONE I GUESS.. 
+    	    Double maxPrice,
     	    Double minNote,
     	    Long sellerId, 
     	    Boolean promo, 
@@ -321,6 +328,29 @@ public class ProductService {
 		return productRepo.findAllByPrixPromoIsNotNullAndActifTrue().stream()
 				.map(productMapper::toResponseDTO)
 				.toList();
+	}
+
+	//hmm
+	public void recalculateLowestPrice(Product product){
+		//promo price -> else basePrice + cheapest config
+		//-> stream variants -> groupBy attribute -> get values -> min -> sum
+		double cheapestVariantDelta = product.getVariants().stream()
+				.collect(Collectors.groupingBy(ProductVariant::getAttribut))
+				.values().stream()
+				.mapToDouble(group->group.stream()
+						.mapToDouble(variant-> variant.getPrixDelta() !=null ? variant.getPrixDelta() :0.0)
+						.min().orElse(0.0))
+				.sum();
+
+		double productBasePrice = product.getPrixPromo() != null ? product.getPrixPromo(): product.getPrix();
+
+		product.setLowestPrice(productBasePrice+cheapestVariantDelta);
+		//note
+		//-> .values() gives A COLLECTION OF A LIST (of product variant)
+		//-> need to STREAM it to get the list .
+		//mapToDouble group -> = we got a LIST .. stream it lol
+		//-> get a stream of the ONE GROUP's variants.
+
 	}
 
     

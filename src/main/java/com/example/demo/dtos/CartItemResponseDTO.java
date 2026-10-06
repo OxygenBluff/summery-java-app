@@ -16,13 +16,16 @@ import lombok.NoArgsConstructor;
 public class CartItemResponseDTO {
 	private Long id;
     private String productName;
-    private String variantName; // 
+    private List<String> variantNames; // many
     private Double unitPrice;
     private Integer quantity;
     private Double subTotal; //qte * prix uniatire 
     private String imageUrl; //oops..
     
-    private List<CustomizationResponseDTO> customizations; 
+    private List<CustomizationResponseDTO> customizations;
+
+    // cart restrictions..
+    private Long branchId;
 
 
 }

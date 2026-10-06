@@ -2,13 +2,13 @@ package com.example.demo.controllers;
 
 import java.util.List;
 
+import com.example.demo.exception.DuplicateResourceException;
+import com.example.demo.exception.ResourceNotFoundException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.demo.entities.Address;
 import com.example.demo.entities.User;
@@ -34,11 +34,13 @@ public class AddressController {
     }
 	
 	//GET /api/addresses: all addtresses for the current user 
-	@GetMapping
+	@GetMapping("/me")
     public ResponseEntity<List<Address>> getMyAddresses() {
 		User currentUser = getCurrentAuthenticatedUser();
 		
         List<Address> addresses = addressRepo.findByUser(currentUser);
+
+        //TODO List<AddressResponseDTO> dtos = addressMapper.toDTOList(addresses);
         return ResponseEntity.ok(addresses);
     }
 	
@@ -47,20 +49,47 @@ public class AddressController {
 	@PostMapping
     public ResponseEntity<Address> addAddress(@RequestBody Address address) {
 		User currentUser = getCurrentAuthenticatedUser();
+
+        //exists in DB check i HAD DUPLCIATES
+        boolean addressExists = addressRepo.existsByUserAndRueIgnoreCaseAndVilleIgnoreCaseAndCodePostalIgnoreCaseAndPaysIgnoreCase(
+                currentUser,
+                address.getRue().trim(),
+                address.getVille().trim(),
+                address.getCodePostal().trim(),
+                address.getPays().trim()
+        );
+
+        if(addressExists){
+            throw new DuplicateResourceException("Address already exists.");
+
+        }
+
         address.setUser(currentUser);
         
-        //addresse par défaut = First one i guess
-        List<Address> existing = addressRepo.findByUser(currentUser);
-        if (existing.isEmpty()) {
+        //addresse par défaut = IF has no addresses principal let's just make it this one
+        boolean hasExistingAddresses = addressRepo.existsByUser(currentUser);
+        if(!hasExistingAddresses){
             address.setPrincipal(true);
-        } else {
-            address.setPrincipal(false);
         }
         
         Address saved = addressRepo.save(address);
         return ResponseEntity.ok(saved);
 
 	}
+
+    //i swear i added this before.. Delete an address
+    @DeleteMapping("/me/{addressId}")
+    public void deleteAddress(@PathVariable Long addressId){
+        User currentUser = getCurrentAuthenticatedUser();
+        //find it ofc
+        Address address = addressRepo.findFirstByUser(currentUser)
+                .orElseThrow(() -> new ResourceNotFoundException("couldn't find the address"));
+
+        //wait delete DELETE
+        addressRepo.deleteById(address.getId());
+
+
+    }
 }
 
 

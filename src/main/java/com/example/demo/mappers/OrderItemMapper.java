@@ -1,5 +1,6 @@
 package com.example.demo.mappers;
 
+import com.example.demo.entities.ProductVariant;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.dtos.OrderItemResponseDTO;
@@ -12,8 +13,10 @@ import lombok.RequiredArgsConstructor;
 
 public class OrderItemMapper {
 	private final CustomizationMapper customizationMapper;
+
+	private final ProductVariantMapper productVariantMapper;
 	
-	//entity OrderItem -> OrderItemResponce
+	//entity OrderItem -> OrderItemResponseDTO
 	  public OrderItemResponseDTO toResponseDTO(OrderItem item) {
 	        if (item == null) return null;
 	        return OrderItemResponseDTO.builder()
@@ -21,8 +24,10 @@ public class OrderItemMapper {
 	                
 	                .productName(item.getProduct().getNom())
 	                
-	                .variantName(item.getVariant() != null ? 
-	                    item.getVariant().getValeur() : null)
+	                .variants(item.getVariants().stream()
+							.map(productVariantMapper::toResponseDTO)
+							.toList()
+					)
 	                
 	                .unitPrice(item.getPrixUnitaire())
 	                
@@ -30,7 +35,7 @@ public class OrderItemMapper {
 	                
 	                .quantite(item.getQuantite())
 	                
-	                .subTotal(item.getPrixUnitaire() + item.getCustomizationsCost() 
+	                .subTotal(item.getPrixUnitaire()
 	                    * item.getQuantite())
 	                
 	                .customizations(item.getCustomizations().stream()

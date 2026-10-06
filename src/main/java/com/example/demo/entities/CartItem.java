@@ -39,13 +39,22 @@ public class CartItem {
 	//for example a shirt in their cart !!! 
 	//=> Diffirent cartItem -> point to the one same product done !
 	
-	private Integer quantite; 
+	private Integer quantite;
 	
 	//product -> has variants or no ?
-	@ManyToOne(fetch=FetchType.LAZY)
-	@JoinColumn(name="variant_id",nullable=true)//variant_id null means has no variants! 
-	private ProductVariant variant;
-	
+	//@ManyToOne(fetch=FetchType.LAZY)
+	//@JoinColumn(name="variant_id",nullable=true)//variant_id null means has no variants!
+	//private ProductVariant variant;
+
+	//UPDATED, many variants not just one
+	@ManyToMany(fetch=FetchType.LAZY)
+	@JoinTable(
+			name="cart_iyem_variants",
+			joinColumns = @JoinColumn(name ="cart_item_id"),
+			inverseJoinColumns = @JoinColumn(name="variant_id")
+	)
+	private List<ProductVariant> variants = new ArrayList<>();
+
 	//customizations 
 	@ManyToMany
 	@JoinTable(

@@ -21,7 +21,12 @@ public class CouponService {
 	}
     
     public Coupon createCoupon(Coupon coupon) {
-    	return couponRepo.save(coupon); 
+
+		//TODO : causes a massive java lang error because of Unique code constraint
+		if( couponRepo.existsByCode(coupon.getCode())){
+			throw new RuntimeException("A coupon with this code already exists.");
+		}
+		return couponRepo.save(coupon);
     }
 
     public void deleteCoupon(Long id) {

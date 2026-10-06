@@ -32,17 +32,26 @@ public interface ProductRepository extends JpaRepository<Product,Long>,JpaSpecif
 	List<Product> findTop10BestSelling(Pageable pageable);
 	//JPQL DOES NOT HAVE LIMIT ?? -> paeagble then..
 	
-	
+	 //alright ..
+	//"use prix promo if the product is on promo OTHERWISE  fall back to regular prix)
+	//how to transalte that ?
+	//-> TODO: minPrice IS NULL OR CASE WHEN p.promo = true THEN p.prixPromo ELSE p.prix END => :minPrice
 	//All products, + filtres .. category, price min/max, promo, sellerId
+	//Postgres are you kidding me ? -> DEFAULT type in psotfres (fails to auto resolve type) = BYTE ? cast as string.. like this, CAST( AS TEXT)
 	@Query("SELECT p FROM Product p WHERE "+
-		    "(:q IS NULL OR LOWER(p.nom) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :q, '%'))) AND "+
+		    "(CAST(:q AS String) IS NULL OR LOWER(p.nom) LIKE LOWER(CONCAT('%',CAST(:q AS String), '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%',CAST(:q AS String), '%'))) AND "+
 
 			"(:category IS NULL OR EXISTS (SELECT c FROM p.categories c WHERE c.nom= :category)) AND "+
-			"(:minPrice IS NULL OR p.prix >= :minPrice) AND "+
-			"(:maxPrice IS NULL OR p.prix <= :maxPrice) AND " +
+
+			"(:minPrice IS NULL OR p.lowestPrice >= :minPrice) AND " +
+
+			"(:maxPrice IS NULL OR " +
+				"p.lowestPrice <=:maxPrice) AND " +
+
 			"(:sellerId IS NULL OR p.seller.id =:sellerId) AND "+
-			"(:promo IS NULL OR (:promo=true AND p.prixPromo IS NOT NULL)) AND "+
-			"(p.actif = true) AND"+ 
+
+			"(:promo IS NULL OR :promo = false OR p.prixPromo IS NOT NULL) AND "+
+			"(p.actif = true) AND " +
 			"(:minNote IS NULL OR (SELECT AVG(r.note) FROM Review r WHERE r.product = p AND r.approuve = true) >= :minNote)")
 			
 	//oh my.. 

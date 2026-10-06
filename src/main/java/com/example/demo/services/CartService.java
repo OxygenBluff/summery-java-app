@@ -5,17 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import com.example.demo.entities.*;
+import com.example.demo.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.dtos.CartItemRequestDTO;
 import com.example.demo.dtos.CartResponseDTO;
-import com.example.demo.entities.Cart;
-import com.example.demo.entities.CartItem;
-import com.example.demo.entities.Coupon;
-import com.example.demo.entities.Customization;
-import com.example.demo.entities.Product;
-import com.example.demo.entities.User;
 import com.example.demo.mappers.CartMapper;
 import com.example.demo.repositories.CartRepository;
 import com.example.demo.repositories.CustomizationRepository;
@@ -23,6 +19,8 @@ import com.example.demo.repositories.ProductRepository;
 import com.example.demo.repositories.ProductVariantRepository;
 
 import lombok.RequiredArgsConstructor;
+
+import static java.util.spi.ToolProvider.findFirst;
 
 @Service
 @Transactional
@@ -51,51 +49,70 @@ public class CartService {
         if (request.getQuantity() <= 0) {
             throw new RuntimeException("Quantity must be greater than 0");
         }//TODO custom Exception !!
-        
+
+        //product + ITS SELECTEDDDD variants
+        Product product = productRepo.findById(request.getProductId())
+                .orElseThrow(()-> new RuntimeException("Product not found"));
+
+        List<ProductVariant> selectedVariants = new ArrayList<>();
+        if(request.getVariantIds() !=null && !request.getVariantIds().isEmpty()){
+            selectedVariants = variantRepo.findAllById(request.getVariantIds());
+        }
+
+        int maxAvailableStock = calculateStock(product,selectedVariants); // wooop
+
         //  is already in the cart ??
         CartItem existingItem = cart.getLignes().stream()
                 .filter(item -> item.getProduct().getId().equals(request.getProductId()))
                 .filter(item -> {
-                	//BOTH NULL ! (or ofc same id)
-                	Long itemVariantId = (item.getVariant() != null) ? item.getVariant().getId() : null;
-                    return Objects.equals(itemVariantId, request.getVariantId());
+                    //BOTH NULL ! (or ofc same id)
+                    //udpated now SET
+                    List<Long> itemVariantsIds = item.getVariants().stream()
+                            .map(ProductVariant::getId)
+                            .sorted()
+                            .toList();
+
+                    List<Long> requestVariantIds = request.getVariantIds() != null ?
+                            request.getVariantIds().stream().sorted().toList() : new ArrayList<>();
+
+                    return itemVariantsIds.equals(requestVariantIds);
                 })
                 .findFirst()
                 .orElse(null);
+                //1-Stream cart items
+                //2-> fitler by productId
+                //3-> find first -> optional <CartItem> COULD BE EMPTYYY
+                //4-> orElse (means null) -> UNWRAPS THE CART ITME OBJCET
+        //TODO OMG it unwraps
 
         if (existingItem != null) {
         	//STOCK !!
         	
         	int totalRequested = existingItem.getQuantite() + request.getQuantity();
-            if (totalRequested > existingItem.getProduct().getStock()) {
-                throw new RuntimeException("Insufficient stock! Total available: " + existingItem.getProduct().getStock());
+
+            //BOTH already amount in cart + the ONE JUST REQUESTED
+            //INSTEA OF DUPLICATES!
+            if (totalRequested >maxAvailableStock ) {// no more existingItem.getProduct().getStock()
+                throw new RuntimeException("Insufficient stock!");
+                //no more  + existingItem.getProduct().getStock()
             }
             
             // Update quantity if already exists
             existingItem.setQuantite(existingItem.getQuantite() + request.getQuantity());
         } else {
             //  new CartItem
-            Product product = productRepo.findById(request.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found"));
-            
-            //STOCK CHECK PLEASEE.. 
-            if (request.getQuantity() > product.getStock()) {
-                throw new RuntimeException("Insufficient stock! Available stock is : " + product.getStock());
+            //STOCK CHECK PLEASEE..
+
+            if (request.getQuantity() > maxAvailableStock ) {// was > product.getStock()
+                throw new RuntimeException("Insufficient stock!");
             }
             
             CartItem newItem = new CartItem();
             newItem.setCart(cart);
             newItem.setProduct(product);
             newItem.setQuantite(request.getQuantity());
-           
-            
-            if (request.getVariantId() != null) {
-            	//bug ! do  not accept null vriant id loool
-                newItem.setVariant(variantRepo.findById(request.getVariantId())
-                		.orElseThrow(() -> new RuntimeException("Fatal: Variant not found with ID: " + request.getVariantId()))
-                		);
-            }
-            
+            newItem.setVariants(selectedVariants);
+
             //customizations to the cartItem 
             if (request.getCustomizationIds() != null && !request.getCustomizationIds().isEmpty()) {
                 List<Customization> customizations = customizationRepo.findAllById(request.getCustomizationIds());
@@ -107,6 +124,21 @@ public class CartService {
 
         Cart savedCart = cartRepo.save(cart);
         return cartMapper.toResponseDTO(savedCart); // dto
+    }
+
+    //HELP -> calcualteStock alone
+    //1- no vairants -> BASE STOCK
+    //2- variants exist ? -> MINIMUM across selected variants
+
+    public int calculateStock(Product product, List<ProductVariant> variants){
+        if(variants!=null && !variants.isEmpty()){
+            //MIN
+            return variants.stream()
+                    .mapToInt(ProductVariant::getStockSupplementaire)
+                    .min()
+                    .orElse(product.getStock());
+        }
+        return product.getStock(); // empty
     }
     
     //getCart 
@@ -134,13 +166,18 @@ public class CartService {
     	
     	//ooh the filter
     	CartItem item = cart.getLignes().stream()
-                .filter(i -> i.getId().equals(itemId))
-                .findFirst()
+               //why not cartItemRepo.findById(itemId) TODO ?
+                //->what if someone passes an itemId belongong to another user's cart ??
+                .filter(i -> i.getId().equals(itemId))// filter -> STREAM OF MATCHESS COULD BE MANY MATCHING THE CONDITION ???
+                .findFirst()// firstFirst -> taked first match, stops evaluating -> wraps in an Optional<CartItem>
+                //TODO write down this is good
                 .orElseThrow(() -> new RuntimeException("Item not found in the cart"));
+        //orElseThrow unboxes ? the optional huh into a CartItem
     	
-    	//STOCK 
-    	if (newQuantity > item.getProduct().getStock()) {
-            throw new RuntimeException("Only " + item.getProduct().getStock() + " units left in stock!");
+    	//STOCK
+        int remainingStock =calculateStock(item.getProduct(),item.getVariants());
+    	if (newQuantity >remainingStock ) {// was item.getProduct().getStock())
+            throw new RuntimeException("Only " + remainingStock + " units left in stock!");
         }
     	
     	if (newQuantity <= 0) {
@@ -176,37 +213,34 @@ public class CartService {
     	
     }
     
-    //coupon stuff.. 
+    //coupon stuff..
+    //TODO persist the coupon...
     public CartResponseDTO applyCoupon(User customer, String code) {
-    	CartResponseDTO dto = getCart(customer);
-    	//valid ? 
+    	Cart cart = cartRepo.findByCustomer(customer)
+                .orElseThrow(()->new ResourceNotFoundException("Couldn't find cart."));
+
     	Coupon coupon = couponService.isCouponValid(code);
-    	
-    	
-    	double discount = 0.0;
-        if ("PERCENT".equalsIgnoreCase(coupon.getType())) {
-            discount = dto.getTotalCartPrice() * (coupon.getValeur() / 100.0);
-        } else if ("FIXED".equalsIgnoreCase(coupon.getType())) {
-            discount = coupon.getValeur();
-        }
-        //.equalsIgnoreCase is crazyy 
-        
-        discount = Math.min(discount, dto.getTotalCartPrice());
-        
-        //new dto  coupons.. 
-        dto.setAppliedCouponCode(coupon.getCode());
-        dto.setDiscountAmount(discount);
-        dto.setFinalPrice(dto.getTotalCartPrice() - discount);
-        
-        return dto;
-    	
+
+        cart.setAppliedCoupon(coupon); // JUST ATTACHING ...
+        //another function to calculate better.. then it returns the cart hmmmmmmmmmm
+        cartRepo.save(cart);
+
+        return getCart(customer);
+
     }
     
     //and to remove the coupon... 
     public CartResponseDTO removeCoupon(User customer) {
-    	CartResponseDTO dto = getCart(customer);
-        dto.setFinalPrice(dto.getTotalCartPrice()); // Reset !!!!!
-        return dto;
+    	//the ACTUAL cart pleasee this is .. whatever
+        Cart cart = cartRepo.findByCustomer(customer)
+                        .orElseThrow(()-> new ResourceNotFoundException("Cart not found"));
+
+        cart.setAppliedCoupon(null);
+
+        //save it NOT THE ONE IN MEMORY
+        Cart savedCart = cartRepo.save(cart);
+
+        return cartMapper.toResponseDTO(savedCart);
     }
     
     

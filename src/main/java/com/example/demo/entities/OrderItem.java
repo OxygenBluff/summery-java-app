@@ -41,9 +41,22 @@ public class OrderItem {
 	//relation avec variant: M variants <-> One order Item
 	//Ex: item = hoodie in size S
 	//50 different customers buy this -> in DB will have 50 OredrItem -> all point to the same product Variant!
+
+	/*
 	@ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "variant_id")
     private ProductVariant variant;
+
+	 */
+
+	//updated
+	@ManyToMany
+	@JoinTable(
+			name="order_item_variants",
+			joinColumns = @JoinColumn(name = "order_item_id"),
+			inverseJoinColumns = @JoinColumn(name="variant_id")
+	)
+	private List<ProductVariant> variants = new ArrayList<>();
 	
 	
 	//Customization ONE EXTRA SYRUP PUMPPP! 

@@ -1,14 +1,13 @@
 package com.example.demo.security;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -24,11 +23,11 @@ public class JwtService {
     private String secretKey;
 	
 	//access token, 15 mins ?
-	private final long jwtExpiration = 30*60*1000; //ms 
-	//user uses this to browse !
+	private final long jwtExpiration = 30*60*1000; //ms
+	//user uses this to browse ! 30*60*1000
 			
 	//refresh token , 7days ? 
-	private final long refreshExpiration = 1000*60*60*24*14; 
+	private final long refreshExpiration = 1000*60*60*24*14;  //  1000*60*60*24*14;
 	//don't have to type password EVERY time you open app 
 	
 	//TOKEN = long string
@@ -41,6 +40,7 @@ public class JwtService {
 	
 	private String buildToken(Map<String,Object> extraClaims, UserDetails userDetails, long expiration) {
 		return Jwts.builder()
+				.id(UUID.randomUUID().toString())
 				.claims(extraClaims)
 				.subject(userDetails.getUsername())
 				.issuedAt(new Date(System.currentTimeMillis()))
@@ -54,7 +54,15 @@ public class JwtService {
 	
 
 	public String generateToken(UserDetails userDetails) {
-		return buildToken(new HashMap<>(), userDetails, jwtExpiration);
+		//hmm MY JWT isn't exposing the ROLE!!
+		Map<String,Object> extraClaims = new HashMap<>();
+
+		List<String> roles = userDetails.getAuthorities().stream()
+				.map(GrantedAuthority::getAuthority)//how am i supposed to learn these functions GrantedAuth ?
+				.toList();
+
+		extraClaims.put("roles",roles);
+		return buildToken(extraClaims, userDetails, jwtExpiration);
 	}
 	
 	//username from token, extract
@@ -101,7 +109,6 @@ public class JwtService {
 	
 	//EKY -> crypt SecretKey 
 	private SecretKey getSignInKey() {
-		System.out.println("Current SecretKey String is: [" + secretKey + "]");
 		//byte[] keyBytes=Decoders.BASE64.decode(secretKey);
 		byte[] keyBytes=secretKey.getBytes(StandardCharsets.UTF_8);
 		return Keys.hmacShaKeyFor(keyBytes); // this one needs a keyBytes array 

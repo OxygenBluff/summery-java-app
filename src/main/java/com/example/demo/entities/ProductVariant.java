@@ -23,7 +23,10 @@ public class ProductVariant {
 	//many varaints (Ex: size S,L, XL..) -> ONE SAME product! 
 	@ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
-	private Product product; 
+	private Product product;
+	//so now product -> many varients BUT
+	// do we need productVariant.getCartItems() ? no.. oh
+
 	
 	private String attribut; //Ex: taille, color...
 	private String valeur; // value de l'attribut 
@@ -31,6 +34,11 @@ public class ProductVariant {
 	private Integer stockSupplementaire; 
 	
 	private Double prixDelta; //the + or - par rapport original !
+	//imageUrl
+	private String imageUrl;
+
+	//hmm
+	private boolean mandatory =false;
 	
 
 }

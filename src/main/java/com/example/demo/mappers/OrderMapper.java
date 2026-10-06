@@ -21,10 +21,14 @@ public class OrderMapper {
 	//order entity -> OrderResponseDTO
 	public OrderResponseDTO toResponseDTO(Order order) {
         if (order == null) return null;
-        
+
+		//the delivery address hello ?
         return OrderResponseDTO.builder()
                 .orderId(order.getId())
                 .orderDate(order.getDateCommande())
+
+				.numeroCommande(order.getNumeroCommande())
+
                 .status(order.getStatut().toString())
                 .totalAmount(order.getTotalTTC())
                 //LEMON
@@ -34,6 +38,8 @@ public class OrderMapper {
                 .pickupTime(order.getPickupTime())
                 
                 .orderType(order.getOrderType())
+
+				.deliveryAddress(order.getAdresseLivraison())
                 
                 .items(order.getLignes() != null ? 
                        order.getLignes().stream()
@@ -45,6 +51,7 @@ public class OrderMapper {
 	
 	
 	//NOT NEEDED
+	/*
 	//helper cartItem  -> cartItemResponseDTO
 	private CartItemResponseDTO toCartItemResponseDTO(OrderItem item) {
         if (item == null) return null;
@@ -61,4 +68,6 @@ public class OrderMapper {
                 .subTotal(item.getPrixUnitaire() * item.getQuantite())
                 .build();
     }
+
+	 */
 }

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CartItemRequestDTO {
 	private Long productId;
-    private Long variantId; // NULL si produit n'a pas de variants!!
+    private List<Long> variantIds; // many
     private Integer quantity;
     
     private List<Long> customizationIds;

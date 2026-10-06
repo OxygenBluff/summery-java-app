@@ -14,4 +14,8 @@ public class VariantRequestDTO {
     private String valeur;          // like "XL"
     private Integer stockSupplementaire; 
     private Double prixDelta;
+
+    private boolean mandatory = false;
+    private String imageUrl;
+
 }

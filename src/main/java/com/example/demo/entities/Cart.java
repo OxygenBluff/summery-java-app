@@ -4,16 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -37,7 +28,13 @@ public class Cart {
 	@Builder.Default
 	private List<CartItem> lignes = new ArrayList<>();
 	
-	private LocalDateTime dateModification; 
+	private LocalDateTime dateModification;
+
+	//where is the coupn persistance nahhh .. one coupon -> multiple carts
+	@ManyToOne
+	@JoinColumn(name="coupon_id")
+	private Coupon appliedCoupon;
+
 	
 	@PreUpdate // = mettre à jour la date si cart change !! 
 	@PrePersist

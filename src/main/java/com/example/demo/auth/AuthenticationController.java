@@ -63,6 +63,11 @@ public class AuthenticationController {
 			)throws IOException{
 		service.refreshToken(request, response);
 	}
+	//TODO
+	//why IO exception ?
+	//-> this endpoint writes directly to the HTTP request/response STREAM !!
+	//not the typical @ReQUESTbODY OR ResponseEntity !! doesn' go through
+	//the Serialization thing
 	
 	
 	@PostMapping("/sellers")

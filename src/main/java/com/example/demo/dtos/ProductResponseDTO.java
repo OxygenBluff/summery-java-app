@@ -27,4 +27,7 @@ public class ProductResponseDTO {
     
     //customizations EXTRA SYRUP PUMPPPP!
     private List<CustomizationResponseDTO>  customizations;
+
+    //sh..
+    private Double lowestPrice;
 }

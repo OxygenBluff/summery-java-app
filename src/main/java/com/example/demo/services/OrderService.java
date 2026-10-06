@@ -1,5 +1,8 @@
 package com.example.demo.services;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -7,27 +10,16 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.example.demo.entities.*;
+import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.repositories.*;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.dtos.OrderRequestDTO;
 import com.example.demo.dtos.OrderResponseDTO;
-import com.example.demo.entities.Address;
-import com.example.demo.entities.Cart;
-import com.example.demo.entities.CartItem;
-import com.example.demo.entities.Customization;
-import com.example.demo.entities.Order;
-import com.example.demo.entities.OrderItem;
-import com.example.demo.entities.OrderType;
-import com.example.demo.entities.Product;
-import com.example.demo.entities.StatutCommande;
-import com.example.demo.entities.User;
 import com.example.demo.mappers.OrderMapper;
-import com.example.demo.repositories.AddressRepository;
-import com.example.demo.repositories.CartRepository;
-import com.example.demo.repositories.OrderRepository;
-import com.example.demo.repositories.ProductRepository;
-import com.example.demo.repositories.SellerRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -44,6 +36,9 @@ public class OrderService {
     private final OrderMapper orderMapper;
     
     private final SellerRepository sellerRepo;
+	private final UserRepository userRepo;
+
+	private final ProductVariantRepository variantRepo;
    
 	
 	//format de commande ORD-2026-XXXXX
@@ -53,7 +48,18 @@ public class OrderService {
 	}//whh is UUID ?
 	//-> UNIVERSALLY guaranteed 128bit number across rhe world.. 
 	//how do they even do that wth..
-	
+
+	//NEW STOCK
+	public int calculateStock(Product product, List<ProductVariant> variants){
+		if(variants!=null && !variants.isEmpty()){
+			//MIN
+			return variants.stream()
+					.mapToInt(ProductVariant::getStockSupplementaire)
+					.min()
+					.orElse(product.getStock());
+		}
+		return product.getStock(); // empty
+	}
 	
 	
 	//place order 
@@ -61,10 +67,10 @@ public class OrderService {
 	public OrderResponseDTO placeOrder(User customer,OrderRequestDTO request) {
 		//user cart 
 		Cart cart = cartRepo.findByCustomer(customer)
-	            .orElseThrow(() -> new RuntimeException("Panier vide"));
+	            .orElseThrow(() -> new RuntimeException("Cart is Empty"));
 		//TODO CUSTOM EXCEPTION
 		
-		if (cart.getLignes().isEmpty()) throw new RuntimeException("Panier vide");
+		if (cart.getLignes().isEmpty()) throw new RuntimeException("Cart is Empty");
 		
 		//addresse doit etre valide! !
 		//LEMOANDE! address optional only for delivery not pickup 
@@ -87,7 +93,7 @@ public class OrderService {
 	            .numeroCommande(generateOrderNumber())
 	            //address livrasion -> rue,ville,code postal i guess
 	            .adresseLivraison(DeliveryAddress)
-	            .OrderType(request.getOrderType())
+	            .orderType(request.getOrderType())
 	            .pickupTime(request.getPickupTime())
 	            .branch(sellerRepo.findById(request.getBranchId())
 	            	    .orElseThrow(() -> new RuntimeException("Branch not found")))
@@ -102,24 +108,58 @@ public class OrderService {
 		//Cart -> many CartItems (lignes) EACH IS A PRODUCT!
 		for (CartItem cartItem : cart.getLignes()) {
 			Product product = cartItem.getProduct();
-			
-			
+
+
 			//stock enough ?
-			if (product.getStock() < cartItem.getQuantite()) {
-	            throw new RuntimeException("Insufficient Stock for the Porduct: " + product.getNom());
+			//TODO FIX -> Min
+			int remainingStock = calculateStock(cartItem.getProduct(),cartItem.getVariants());
+
+			if (remainingStock< cartItem.getQuantite()) {
+	            throw new RuntimeException("Insufficient Stock for the Product: " + product.getNom());
 	        }
 			
-			//else subtract stock:  + SAVE AGAIN 
-			product.setStock(product.getStock() - cartItem.getQuantite());
-	        productRepo.save(product);
+			//else subtract stock:  + SAVE AGAIN
+			//TODO, also must subtract the VARIANT STOCK SUPPLEMENTAIRE IF no variant
+
+			//CASE 1: ITEM WITH VARIANTS
+			if(cartItem.getVariants() !=null && !cartItem.getVariants().isEmpty()){
+				for(ProductVariant variant: cartItem.getVariants()){
+					//so variant exists, subtract from the cart qte still ..
+					//what is variant not mandatory ? oh ??
+					//TODO PELASEE investigate
+					//TODO
+					variant.setStockSupplementaire(variant.getStockSupplementaire()-cartItem.getQuantite());
+					variantRepo.save(variant);
+				}
+			}else{
+				//NO VARIANTS -> - baseStock
+				product.setStock(product.getStock()- cartItem.getQuantite());
+				productRepo.save(product);
+			}
+			
 	        
-	        //all good ? -> OrderItem = snapshot , doesn't change! 
+	        //all good ? -> OrderItem = snapshot , doesn't change!
+
+			//variant detlas price increase with order
+			double variantsDelta = cartItem.getVariants().stream()
+					.mapToDouble(variant -> variant.getPrixDelta() != null ? variant.getPrixDelta(): 0.0)
+					.sum();
+
+			double customizationsDelta = cartItem.getCustomizations().stream()
+					.mapToDouble(Customization::getExtraPrice)
+					.sum();
+
+
+			//DISCOUNTSSS
+			double effectivePrice = product.getPrixPromo() !=null ? product.getPrixPromo() : product.getPrix();
+
 	        OrderItem orderItem = OrderItem.builder()
 	                .order(order)
 	                .product(product)
-	                .variant(cartItem.getVariant())
+	                .variants(cartItem.getVariants())
 	                .quantite(cartItem.getQuantite())
-	                .prixUnitaire(product.getPrix()) // PRICE IS FORZEN AND SET§§
+					//TODO variant detlassss
+	                .prixUnitaire(effectivePrice+variantsDelta + customizationsDelta) // PRICE IS FROZEN AND SET§§
 	                .customizations(cartItem.getCustomizations()) // SAME FROM CART!!
 	                .customizationsCost(cartItem.getCustomizations().stream()
 	                        .mapToDouble(Customization::getExtraPrice)
@@ -131,12 +171,31 @@ public class OrderService {
 	        runningSubTotal += orderItem.getPrixUnitaire() * orderItem.getQuantite();
 			
 		}
-		order.setSousTotal(runningSubTotal);
-	    order.setTotalTTC(runningSubTotal + order.getFraisLivraison());
+		//Discount application WHERE ??
+		double discount = 0.0;
+		Coupon appliedCoupon = cart.getAppliedCoupon();
+		if(appliedCoupon!=null){
+			//1 types: FIXED or PERCENT
+			if( appliedCoupon.getType().equalsIgnoreCase("FIXED")){
+				discount=appliedCoupon.getValeur();
+			}else if(appliedCoupon.getType().equalsIgnoreCase("PERCENT")){
+				discount=(appliedCoupon.getValeur()/100.0)*runningSubTotal;
+			}
+		}
+
+		discount = Math.min(runningSubTotal,discount);
+		double finalTotal = (runningSubTotal - discount);
+
+		order.setSousTotal(finalTotal);
+		//TODO.. might need to set this to the original running subtotal..
+		//THEN add a column discounted for RECORDS
+	    order.setTotalTTC(finalTotal + order.getFraisLivraison());
 	    
 	    //if order saved -> cart is wiped I FORGOT! 
 	    Order savedOrder = orderRepo.save(order);
 	    cart.getLignes().clear(); // Orphan removal handles the DB cleanup
+		//also coupon
+		cart.setAppliedCoupon(null);
 	    cartRepo.save(cart);
 	    
 	    return orderMapper.toResponseDTO(savedOrder);
@@ -145,19 +204,38 @@ public class OrderService {
 	
 	//finally rest of API endpoints. 
 	
-	//get order by id 
+	//get order by id
+	//TODO vulnerability ...  admin can get without no check, BUT user ? match your id
+
 	public OrderResponseDTO getOrderById(Long id) {
+
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+		User currentUser= userRepo.findByEmail(email)
+				.orElseThrow(()-> new ResourceNotFoundException("User not found"));
+
 		Order order = orderRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+				.orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+		//SECURITYYYY
+		boolean isAdmin = currentUser.getRole() == UserRole.ADMIN;
+
+		boolean isOrderOwner = order.getCustomer().getId().equals(currentUser.getId());
+
+		if(!isOrderOwner && !isAdmin){
+			//not the owner, then u must be an admin, oh r neither ? bye bye
+			throw new AccessDeniedException("Access denied for this request");
+		}
+
 		return orderMapper.toResponseDTO(order);
 	}
 	
-	// GET -> /api/orders/my all orders 
-	public List<OrderResponseDTO> getMyOrders(User customer) {
-		return orderRepo.findByCustomerOrderByDateCommandeDesc(customer)
-                .stream()
-                .map(orderMapper::toResponseDTO)
-                .collect(Collectors.toList());
+	// GET -> /api/orders/my all orders
+	//UPDATED TO PAGE
+	public Page<OrderResponseDTO> getMyOrders(User customer, Pageable pageable) {
+
+		return orderRepo.findByCustomer(customer,pageable)
+				.map(orderMapper::toResponseDTO);
+		//no need to stream and collect for pages oh wew
 	}
 	
 	// PUT /api/orders/{id}/status -> update order status 

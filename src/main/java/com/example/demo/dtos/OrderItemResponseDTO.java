@@ -3,13 +3,15 @@ package com.example.demo.dtos;
 import java.util.List;
 
 import lombok.Builder;
+import lombok.Data;
 
+@Data
 @Builder
 public class OrderItemResponseDTO {
 
 	private Long id;
     private String productName;
-    private String variantName;      // no variant = NULL
+    private List<VariantResponseDTO> variants;
     private Double unitPrice;
     private Double customizationsCost;
     private Integer quantite;

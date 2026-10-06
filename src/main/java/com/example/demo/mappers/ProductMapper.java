@@ -1,7 +1,9 @@
 package com.example.demo.mappers;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
+import com.example.demo.entities.Review;
 import org.springframework.stereotype.Component;
 
 import com.example.demo.dtos.ProductRequestDTO;
@@ -24,11 +26,28 @@ public class ProductMapper {
     //customization EXTRA SYRUP PUMP! 
     private final CustomizationMapper customizationMapper;
 
+    //reviews mystery..
+    private final ReviewMapper reviewMapper;
+
     
     //product -> productResponseDTO
     public ProductResponseDTO toResponseDTO(Product entity) {
     	if (entity == null) return null;
-    	
+
+        //added finally...
+        List<Review> approvedReviews = entity.getReviews().stream()
+                .filter(Review::isApprouve)//TODO also needs it ??
+                .toList();
+
+        Double noteMoyenne = approvedReviews.isEmpty() ? null :
+                approvedReviews.stream()
+                .mapToInt(Review::getNote)// TODO same as r->r.getNote ?
+                        //TODO don't ask me why it's mapToInt ..
+                        //IntStream has average, regular stream doesn't ..
+                .average()
+                .orElse(0.0);
+
+
     	return ProductResponseDTO.builder()
     			.id(entity.getId())
                 .nom(entity.getNom())
@@ -39,6 +58,9 @@ public class ProductMapper {
                 .stock(entity.getStock())
                 .actif(entity.isActif())
                 .dateCreation(entity.getDateCreation())
+
+                .lowestPrice(entity.getLowestPrice())
+
                 //categories -> list 
                 .categories(entity.getCategories().stream()
                 		.map(categoryMapper::MapToResponseDTO)
@@ -54,7 +76,12 @@ public class ProductMapper {
                 		.map(customizationMapper::toResponseDTO)
                 		.toList()
                 		)
-                
+
+                //how did i forget these..
+                .noteMoyenne(noteMoyenne)
+                .reviews(approvedReviews.stream()
+                        .map(reviewMapper::toResponseDTO)
+                        .toList())
                 .build();
     }
     //Product request dto -> Product 

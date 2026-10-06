@@ -27,7 +27,7 @@ public class Seller {
 	private Long id; 
 	
 	@OneToOne
-	@JoinColumn(name="user_id")
+	@JoinColumn(name="user_id",nullable = true)
 	private User user; // 1-1 User: Seller
 	
 	private String nomBoutique; 
@@ -47,11 +47,14 @@ public class Seller {
 	//open hours !? date data type ? string is fineee nah it's LocalTime
 	private LocalTime openingTime;
 	private LocalTime closingTime;
-	
-	
+
+	@Builder.Default
 	@Column(columnDefinition = "boolean default true")
 	//it's the same weird thing.. this annotation otherwise in the DB it will be null..
 	private boolean active = true;
+
+	//MF THIS STILL DOES NOT MAKE IT TRUE ,????  just tells it what it is.
+	//this is how to: @Builder.Default
 	
 	
 	private Double note; //rating 

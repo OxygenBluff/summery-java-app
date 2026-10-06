@@ -76,6 +76,15 @@ public class Product {
     //one product! -> customizations
     @OneToMany(mappedBy="product",cascade=CascadeType.ALL, orphanRemoval=true)
     private List <Customization> customizations= new ArrayList<>();
+
+    //no reviews ?? what.. ok.. product -> many reviews
+    @OneToMany(mappedBy="product",cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Review> reviews = new ArrayList<>();
+
+    //this is extremely tricky ... -> computer lowest price TAKING ACCOUNT OF THE PROMO PRICE -> send it to the JPQL for the price filtering
+
+    private Double lowestPrice;
+
    
 }
 	

@@ -1,5 +1,6 @@
 package com.example.demo.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -45,6 +46,16 @@ public class SecurityConfiguration {
 		http
 		.cors(Customizer.withDefaults())// -> use the @CrossOrigin in the contoller!
 		.csrf(csrf->csrf.disable())//stateless API -> disable CSRF, cross site request forgery
+
+		//THIS IS NEEDEDDD
+				.exceptionHandling(exception -> exception
+				.authenticationEntryPoint((request, response, authException) -> {
+					response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // Force 401 Unauthorized!
+					response.setContentType("application/json");
+					response.getWriter().write("{\"status\": 401, \"error\": \"Unauthorized\", \"message\": \"Token expired or invalid\"}");
+				})
+		)
+
 		.authorizeHttpRequests(auth->auth
 				//1-REST API (AuthenticationController)
 				// ---- CLEAN UP !!
@@ -99,6 +110,8 @@ public class SecurityConfiguration {
 			    .requestMatchers("/product/**").permitAll()
 			   
 			    //.requestMatchers("/api/cart/**").hasRole("CUSTOMER")
+
+				.requestMatchers("/actuator/**").permitAll()
 				
 				
 

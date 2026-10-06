@@ -16,7 +16,7 @@ import com.example.demo.services.DashboardService;
 
 import lombok.RequiredArgsConstructor;
 
-//@RestController
+@RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
 public class DashboardController {

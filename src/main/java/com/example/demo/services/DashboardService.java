@@ -25,7 +25,7 @@ import com.example.demo.repositories.SellerRepository;
 
 import lombok.RequiredArgsConstructor;
 
-//@Service
+@Service
 @RequiredArgsConstructor
 public class DashboardService {
 	private final OrderRepository orderRepo;
